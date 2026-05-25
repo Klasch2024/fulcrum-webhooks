@@ -63,7 +63,7 @@ export async function handleCampaignCompleted(p: CampaignCompletedPayload) {
         email:    email,
         name:     (p as any).firstName ?? (p as any).first_name ?? null,
         phone:    phone,
-        company:  (p as any).company_name ?? null,
+        company:  (p as any).company_name ?? (p as any).companyName ?? '',
         status:   'pending',
         added_at: new Date().toISOString(),
       },
