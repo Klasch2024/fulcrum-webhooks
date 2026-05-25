@@ -26,7 +26,7 @@ export async function handleWaMessageReceived(p: WasenderMessageReceivedPayload)
   // Find the most recent outbound send to this phone number
   const { data: mapRow } = await supabase
     .from('wasender_message_map')
-    .select('message_id, wasender_message_map.prospect_phone, outreach_sends!inner(prospect_id, campaign_id)')
+    .select('message_id')
     .eq('prospect_phone', senderPhone)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -37,8 +37,15 @@ export async function handleWaMessageReceived(p: WasenderMessageReceivedPayload)
     return;
   }
 
-  const messageId  = mapRow.message_id;
-  const send       = (mapRow as any).outreach_sends;
+  const messageId = mapRow.message_id;
+
+  // Look up prospect_id and campaign_id from outreach_sends
+  const { data: send } = await supabase
+    .from('outreach_sends')
+    .select('prospect_id, campaign_id')
+    .eq('message_id', messageId)
+    .single();
+
   const prospectId = send?.prospect_id;
   const campaignId = send?.campaign_id;
 
