@@ -60,12 +60,14 @@ export async function handleCampaignCompleted(p: CampaignCompletedPayload) {
     .from('wa_email_flow_leads')
     .upsert(
       {
-        email:    email,
-        name:     (p as any).firstName ?? (p as any).first_name ?? null,
-        phone:    phone,
-        company:  (p as any).company_name ?? (p as any).companyName ?? '',
-        status:   'pending',
-        added_at: new Date().toISOString(),
+        email:                 email,
+        name:                  (p as any).firstName ?? (p as any).first_name ?? null,
+        phone:                 phone,
+        company:               (p as any).company_name ?? (p as any).companyName ?? '',
+        status:                'pending',
+        added_at:              new Date().toISOString(),
+        instantly_campaign_id: p.campaign_id,
+        campaign_name:         p.campaign_name,
       },
       { onConflict: 'email' }
     );

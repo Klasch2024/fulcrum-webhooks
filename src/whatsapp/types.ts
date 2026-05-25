@@ -69,8 +69,9 @@ export interface WhatsAppSendRequest {
   documentUrl?:         string;
   fileName?:            string;
   // Context your dashboard must pass through
-  campaign_id:          string;
-  prospect_id:          string;
+  campaign_id:          string;   // Instantly campaign UUID
+  prospect_email:       string;   // used to look up prospect_id UUID in analytics DB
+  prospect_id?:         string;   // optional — ignored if not a valid UUID
   sequence_step_number: number;
   days_into_sequence?:  number;
   is_first_touch?:      boolean;

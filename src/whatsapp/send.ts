@@ -22,8 +22,8 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
   const body = req.body as WhatsAppSendRequest;
 
   // Validate required fields
-  if (!body.to || !body.campaign_id || !body.prospect_id || !body.wasender_api_key) {
-    res.status(400).json({ error: 'Missing required fields: to, campaign_id, prospect_id, wasender_api_key' });
+  if (!body.to || !body.campaign_id || !body.prospect_email || !body.wasender_api_key) {
+    res.status(400).json({ error: 'Missing required fields: to, campaign_id, prospect_email, wasender_api_key' });
     return;
   }
 
@@ -32,10 +32,29 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
     const t      = getTimeFields(sentAt);
 
     // Build the Wasender payload — strip our internal fields
-    const { campaign_id, prospect_id, sequence_step_number, days_into_sequence,
+    const { campaign_id, prospect_id, prospect_email, sequence_step_number, days_into_sequence,
             is_first_touch, wasender_api_key, ...wasenderPayload } = body;
 
-    // 1. Send via Wasender
+    // 1. Look up real prospect_id UUID from analytics DB by email
+    let resolvedProspectId: string | null = null;
+    const { data: prospect } = await supabase
+      .from('prospects')
+      .select('prospect_id')
+      .eq('email', prospect_email)
+      .maybeSingle();
+    if (prospect?.prospect_id) {
+      resolvedProspectId = prospect.prospect_id;
+    } else {
+      // Auto-create prospect so future queries can link to it
+      const { data: newProspect } = await supabase
+        .from('prospects')
+        .insert({ email: prospect_email })
+        .select('prospect_id')
+        .single();
+      resolvedProspectId = newProspect?.prospect_id ?? null;
+    }
+
+    // 2. Send via Wasender
     const { data: wasenderRes } = await wasender.post('/send-message', wasenderPayload, {
       headers: { Authorization: `Bearer ${wasender_api_key}` },
     });
@@ -51,14 +70,14 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
     const messageBody = body.text ?? (body.imageUrl ? '[image]' : body.videoUrl ? '[video]'
       : body.audioUrl ? '[voice note]' : body.documentUrl ? '[document]' : '');
 
-    // 2. Insert outreach_sends row (non-fatal — message already delivered)
+    // 3. Insert outreach_sends row (non-fatal — message already delivered)
     let messageUuid: string | null = null;
     const { data: send, error: sendError } = await supabase
       .from('outreach_sends')
       .insert({
-        prospect_id:              toUuid(prospect_id),
-        prospect_email:           body.to,   // reusing prospect_email field for phone
-        campaign_id:              toUuid(campaign_id),
+        prospect_id:              resolvedProspectId,
+        prospect_email:           prospect_email,
+        campaign_id:              toUuid(campaign_id) ?? campaign_id,
         channel:                  'whatsapp',
         sequence_step_number:     sequence_step_number,
         days_into_sequence:       days_into_sequence ?? null,
@@ -85,7 +104,7 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
     } else {
       messageUuid = send.message_id;
 
-      // 3. Store msgId → message_id mapping for webhook lookups
+      // 4. Store msgId → message_id mapping for webhook lookups
       const { error: mapError } = await supabase
         .from('wasender_message_map')
         .insert({
