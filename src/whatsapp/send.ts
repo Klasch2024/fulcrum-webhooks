@@ -48,7 +48,8 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
     const messageBody = body.text ?? (body.imageUrl ? '[image]' : body.videoUrl ? '[video]'
       : body.audioUrl ? '[voice note]' : body.documentUrl ? '[document]' : '');
 
-    // 2. Insert outreach_sends row
+    // 2. Insert outreach_sends row (non-fatal — message already delivered)
+    let messageUuid: string | null = null;
     const { data: send, error: sendError } = await supabase
       .from('outreach_sends')
       .insert({
@@ -77,27 +78,28 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
       .single();
 
     if (sendError || !send) {
-      res.status(500).json({ error: 'DB insert failed', detail: sendError?.message });
-      return;
+      console.error('[whatsapp/send] outreach_sends insert failed:', sendError?.message, sendError?.details, sendError?.hint);
+    } else {
+      messageUuid = send.message_id;
+
+      // 3. Store msgId → message_id mapping for webhook lookups
+      const { error: mapError } = await supabase
+        .from('wasender_message_map')
+        .insert({
+          wasender_msg_id: wasenderMsgId,
+          message_id:      messageUuid,
+          prospect_phone:  body.to,
+        });
+
+      if (mapError) {
+        console.error('[whatsapp/send] wasender_message_map insert failed:', mapError.message);
+      }
     }
 
-    // 3. Store msgId → message_id mapping for webhook lookups
-    const { error: mapError } = await supabase
-      .from('wasender_message_map')
-      .insert({
-        wasender_msg_id: wasenderMsgId,
-        message_id:      send.message_id,
-        prospect_phone:  body.to,
-      });
-
-    if (mapError) {
-      console.error('[whatsapp/send] Map insert failed:', mapError.message);
-      // Non-fatal — send already succeeded
-    }
-
+    // Always return 200 — Wasender already delivered the message
     res.status(200).json({
-      success:        true,
-      message_id:     send.message_id,
+      success:         true,
+      message_id:      messageUuid,
       wasender_msg_id: wasenderMsgId,
     });
 
