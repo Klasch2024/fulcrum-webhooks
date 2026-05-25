@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { supabase } from '../../supabase';
+import { dashboardSupabase } from '../../supabase';
 import { instantly } from '../../instantly';
 import { config } from '../../config';
 import { CampaignCompletedPayload } from '../types';
@@ -9,7 +9,7 @@ export async function handleCampaignCompleted(p: CampaignCompletedPayload) {
   console.log('[campaign-completed] Raw payload:', JSON.stringify(p));
 
   const email = p.email ?? p.lead_email;
-  let phone = p.lead_phone_number ?? (p as any).phone ?? (p as any).variables?.phone;
+  let phone = (p as any).phone ?? p.lead_phone_number ?? (p as any).variables?.phone;
 
   // Instantly doesn't always include phone in the webhook — fetch it from the API
   if (!phone) {
@@ -56,16 +56,16 @@ export async function handleCampaignCompleted(p: CampaignCompletedPayload) {
   console.log(`[campaign-completed] ${email} is on WhatsApp — adding to wa_email_flow_leads`);
 
   // 2. Insert into wa_email_flow_leads (upsert on email to avoid duplicates)
-  const { error } = await supabase
+  const { error } = await dashboardSupabase
     .from('wa_email_flow_leads')
     .upsert(
       {
-        email:        email,
-        company:      p.company_name ?? null,
-        phone:        phone,
-        campaign_id:  p.campaign_id,
-        campaign_name: p.campaign_name,
-        added_at:     new Date().toISOString(),
+        email:    email,
+        name:     (p as any).firstName ?? (p as any).first_name ?? null,
+        phone:    phone,
+        company:  (p as any).company_name ?? null,
+        status:   'pending',
+        added_at: new Date().toISOString(),
       },
       { onConflict: 'email' }
     );

@@ -12,5 +12,7 @@ export const config = {
   supabaseServiceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY'),
   instantlyApiKey:        required('INSTANTLY_API_KEY'),
   wasenderApiKey:         required('WASENDER_API_KEY'),
+  dashboardSupabaseUrl:            required('DASHBOARD_SUPABASE_URL'),
+  dashboardSupabaseServiceRoleKey: required('DASHBOARD_SUPABASE_SERVICE_ROLE_KEY'),
   webhookSecret:          process.env.WEBHOOK_SECRET ?? '',
 };

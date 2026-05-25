@@ -6,3 +6,10 @@ export const supabase = createClient(
   config.supabaseServiceRoleKey,
   { auth: { persistSession: false } }
 );
+
+// Second client for the dashboard Supabase project (wa_email_flow_leads etc.)
+export const dashboardSupabase = createClient(
+  config.dashboardSupabaseUrl,
+  config.dashboardSupabaseServiceRoleKey,
+  { auth: { persistSession: false } }
+);
