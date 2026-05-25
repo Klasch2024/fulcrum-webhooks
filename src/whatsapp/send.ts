@@ -22,8 +22,8 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
   const body = req.body as WhatsAppSendRequest;
 
   // Validate required fields
-  if (!body.to || !body.campaign_id || !body.prospect_email || !body.wasender_api_key) {
-    res.status(400).json({ error: 'Missing required fields: to, campaign_id, prospect_email, wasender_api_key' });
+  if (!body.to || !body.campaign_id || !body.wasender_api_key) {
+    res.status(400).json({ error: 'Missing required fields: to, campaign_id, wasender_api_key' });
     return;
   }
 
@@ -35,23 +35,27 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
     const { campaign_id, prospect_id, prospect_email, sequence_step_number, days_into_sequence,
             is_first_touch, wasender_api_key, ...wasenderPayload } = body;
 
-    // 1. Look up real prospect_id UUID from analytics DB by email
+    // 1. Look up real prospect_id UUID from analytics DB by email (skip if no email)
     let resolvedProspectId: string | null = null;
-    const { data: prospect } = await supabase
-      .from('prospects')
-      .select('prospect_id')
-      .eq('email', prospect_email)
-      .maybeSingle();
-    if (prospect?.prospect_id) {
-      resolvedProspectId = prospect.prospect_id;
-    } else {
-      // Auto-create prospect so future queries can link to it
-      const { data: newProspect } = await supabase
+    if (prospect_email) {
+      const { data: prospect } = await supabase
         .from('prospects')
-        .insert({ email: prospect_email })
         .select('prospect_id')
-        .single();
-      resolvedProspectId = newProspect?.prospect_id ?? null;
+        .eq('email', prospect_email)
+        .maybeSingle();
+      if (prospect?.prospect_id) {
+        resolvedProspectId = prospect.prospect_id;
+      } else {
+        // Auto-create prospect so future queries can link to it
+        const { data: newProspect } = await supabase
+          .from('prospects')
+          .insert({ email: prospect_email })
+          .select('prospect_id')
+          .single();
+        resolvedProspectId = newProspect?.prospect_id ?? null;
+      }
+    } else {
+      console.warn(`[whatsapp/send] No prospect_email provided for ${body.to} — send will be unlinked`);
     }
 
     // 2. Send via Wasender
