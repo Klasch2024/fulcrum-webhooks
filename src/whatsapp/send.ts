@@ -13,6 +13,9 @@ import { getTimeFields } from '../utils/time';
 import { countWords } from '../utils/text';
 import { WhatsAppSendRequest } from './types';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const toUuid = (v: string | undefined): string | null => (v && UUID_RE.test(v) ? v : null);
+
 export const whatsappSendRouter = Router();
 
 whatsappSendRouter.post('/', async (req: Request, res: Response) => {
@@ -53,9 +56,9 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
     const { data: send, error: sendError } = await supabase
       .from('outreach_sends')
       .insert({
-        prospect_id:              prospect_id,
+        prospect_id:              toUuid(prospect_id),
         prospect_email:           body.to,   // reusing prospect_email field for phone
-        campaign_id:              campaign_id,
+        campaign_id:              toUuid(campaign_id),
         channel:                  'whatsapp',
         sequence_step_number:     sequence_step_number,
         days_into_sequence:       days_into_sequence ?? null,
