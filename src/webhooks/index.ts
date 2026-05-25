@@ -8,6 +8,7 @@ import { handleLinkClicked }      from './handlers/link-clicked';
 import { handleEmailBounced }     from './handlers/email-bounced';
 import { handleLeadUnsubscribed } from './handlers/lead-unsubscribed';
 import { handleLeadInterested }   from './handlers/lead-interested';
+import { handleCampaignCompleted } from './handlers/campaign-completed';
 
 export const webhookRouter = Router();
 
@@ -38,6 +39,9 @@ webhookRouter.post('/', async (req: Request, res: Response) => {
         case 'lead_unsubscribed':    await handleLeadUnsubscribed(event); break;
         case 'lead_interested':
         case 'lead_not_interested':  await handleLeadInterested(event);   break;
+        case 'campaign_completed_for_lead':
+        case 'campaign_completed_for_lead_without_reply':
+                                     await handleCampaignCompleted(event as any); break;
         default:
           console.log(`Unhandled event type: ${(event as WebhookPayload).event_type}`);
       }

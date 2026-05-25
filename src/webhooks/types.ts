@@ -6,7 +6,9 @@ export type InstantlyEventType =
   | 'email_bounced'
   | 'lead_unsubscribed'
   | 'lead_interested'
-  | 'lead_not_interested';
+  | 'lead_not_interested'
+  | 'campaign_completed_for_lead'
+  | 'campaign_completed_for_lead_without_reply';
 
 interface BasePayload {
   event_type:    InstantlyEventType;
@@ -61,6 +63,14 @@ export interface LeadNotInterestedPayload extends BasePayload {
   event_type: 'lead_not_interested';
 }
 
+export interface CampaignCompletedPayload extends BasePayload {
+  event_type:        'campaign_completed_for_lead' | 'campaign_completed_for_lead_without_reply';
+  lead_phone_number?: string;
+  company_name?:      string;
+  // Instantly sometimes uses 'email' instead of 'lead_email' on this event
+  email?:             string;
+}
+
 export type WebhookPayload =
   | EmailSentPayload
   | EmailOpenedPayload
@@ -69,4 +79,5 @@ export type WebhookPayload =
   | EmailBouncedPayload
   | LeadUnsubscribedPayload
   | LeadInterestedPayload
-  | LeadNotInterestedPayload;
+  | LeadNotInterestedPayload
+  | CampaignCompletedPayload;
