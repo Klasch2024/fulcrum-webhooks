@@ -1,0 +1,108 @@
+/**
+ * POST /api/whatsapp/send
+ *
+ * Your dashboard calls this endpoint instead of Wasender directly.
+ * We proxy the send to Wasender, capture the msgId, and write the
+ * outreach_sends row + wasender_message_map row in one shot.
+ */
+
+import { Router, Request, Response } from 'express';
+import { supabase } from '../supabase';
+import { wasender } from '../wasender';
+import { getTimeFields } from '../utils/time';
+import { countWords } from '../utils/text';
+import { WhatsAppSendRequest } from './types';
+
+export const whatsappSendRouter = Router();
+
+whatsappSendRouter.post('/', async (req: Request, res: Response) => {
+  const body = req.body as WhatsAppSendRequest;
+
+  // Validate required fields
+  if (!body.to || !body.campaign_id || !body.prospect_id || !body.wasender_api_key) {
+    res.status(400).json({ error: 'Missing required fields: to, campaign_id, prospect_id, wasender_api_key' });
+    return;
+  }
+
+  try {
+    const sentAt = new Date().toISOString();
+    const t      = getTimeFields(sentAt);
+
+    // Build the Wasender payload — strip our internal fields
+    const { campaign_id, prospect_id, sequence_step_number, days_into_sequence,
+            is_first_touch, wasender_api_key, ...wasenderPayload } = body;
+
+    // 1. Send via Wasender
+    const { data: wasenderRes } = await wasender.post('/send-message', wasenderPayload, {
+      headers: { Authorization: `Bearer ${wasender_api_key}` },
+    });
+
+    if (!wasenderRes?.success) {
+      res.status(502).json({ error: 'Wasender send failed', detail: wasenderRes });
+      return;
+    }
+
+    const wasenderMsgId: number = wasenderRes.data.msgId;
+
+    // Determine message content for DB
+    const messageBody = body.text ?? (body.imageUrl ? '[image]' : body.videoUrl ? '[video]'
+      : body.audioUrl ? '[voice note]' : body.documentUrl ? '[document]' : '');
+
+    // 2. Insert outreach_sends row
+    const { data: send, error: sendError } = await supabase
+      .from('outreach_sends')
+      .insert({
+        prospect_id:              prospect_id,
+        prospect_email:           body.to,   // reusing prospect_email field for phone
+        campaign_id:              campaign_id,
+        channel:                  'whatsapp',
+        sequence_step_number:     sequence_step_number,
+        days_into_sequence:       days_into_sequence ?? null,
+        is_first_touch:           is_first_touch ?? false,
+        sent_at:                  sentAt,
+        sent_day_of_week:         t.dayOfWeek,
+        sent_hour_utc:            t.hourUtc,
+        sent_week_of_year:        t.weekOfYear,
+        sent_month:               t.month,
+        message_body:             messageBody,
+        message_length_words:     countWords(body.text ?? ''),
+        channel_format:           body.audioUrl ? 'voice_note'
+                                : body.videoUrl ? 'video_thumbnail'
+                                : body.imageUrl ? 'image'
+                                : 'plain_text',
+        whatsapp_delivery_status: 'sent',
+        deliverability_status:    'delivered',
+      })
+      .select('message_id')
+      .single();
+
+    if (sendError || !send) {
+      res.status(500).json({ error: 'DB insert failed', detail: sendError?.message });
+      return;
+    }
+
+    // 3. Store msgId → message_id mapping for webhook lookups
+    const { error: mapError } = await supabase
+      .from('wasender_message_map')
+      .insert({
+        wasender_msg_id: wasenderMsgId,
+        message_id:      send.message_id,
+        prospect_phone:  body.to,
+      });
+
+    if (mapError) {
+      console.error('[whatsapp/send] Map insert failed:', mapError.message);
+      // Non-fatal — send already succeeded
+    }
+
+    res.status(200).json({
+      success:        true,
+      message_id:     send.message_id,
+      wasender_msg_id: wasenderMsgId,
+    });
+
+  } catch (err: any) {
+    console.error('[whatsapp/send] Error:', err?.message);
+    res.status(500).json({ error: err?.message ?? 'Unknown error' });
+  }
+});

@@ -5,7 +5,7 @@ import { getTimeFields } from '../../utils/time';
 import { countWords, stripHtml } from '../../utils/text';
 
 export async function handleEmailSent(p: EmailSentPayload): Promise<void> {
-  const prospectId = await getOrCreateProspect(p.lead_email);
+const prospectId = await getOrCreateProspect(p.lead_email);
   const t = getTimeFields(p.timestamp);
   const body = p.email_text || stripHtml(p.email_html);
 
