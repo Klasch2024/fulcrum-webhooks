@@ -39,7 +39,6 @@ webhookRouter.post('/', async (req: Request, res: Response) => {
         case 'lead_unsubscribed':    await handleLeadUnsubscribed(event); break;
         case 'lead_interested':
         case 'lead_not_interested':  await handleLeadInterested(event);   break;
-        case 'campaign_completed_for_lead':
         case 'campaign_completed_for_lead_without_reply':
                                      await handleCampaignCompleted(event as any); break;
         default:
