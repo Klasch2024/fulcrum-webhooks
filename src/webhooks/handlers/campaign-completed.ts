@@ -5,16 +5,23 @@ import { config } from '../../config';
 import { CampaignCompletedPayload } from '../types';
 
 export async function handleCampaignCompleted(p: CampaignCompletedPayload) {
+  // Log full payload so we can see exactly what Instantly sends
+  console.log('[campaign-completed] Raw payload:', JSON.stringify(p));
+
   const email = p.email ?? p.lead_email;
-  let phone = p.lead_phone_number;
+  let phone = p.lead_phone_number ?? (p as any).phone ?? (p as any).variables?.phone;
 
   // Instantly doesn't always include phone in the webhook — fetch it from the API
   if (!phone) {
     try {
-      const { data: leadData } = await instantly.get(`/leads/${email}`, {
-        params: { campaign_id: p.campaign_id },
+      // Try listing the lead to get phone
+      const { data: listData } = await instantly.post('/leads/list', {
+        campaign_id: p.campaign_id,
+        email:       email,
+        limit:       1,
       });
-      phone = leadData?.phone ?? leadData?.lead_phone_number ?? leadData?.variables?.phone;
+      const lead = listData?.items?.[0] ?? listData?.[0];
+      phone = lead?.phone ?? lead?.lead_phone_number ?? lead?.variables?.phone;
     } catch (err: any) {
       console.error(`[campaign-completed] Failed to fetch lead data for ${email}:`, err?.message);
     }
