@@ -1,11 +1,24 @@
 import axios from 'axios';
 import { supabase } from '../../supabase';
+import { instantly } from '../../instantly';
 import { config } from '../../config';
 import { CampaignCompletedPayload } from '../types';
 
 export async function handleCampaignCompleted(p: CampaignCompletedPayload) {
   const email = p.email ?? p.lead_email;
-  const phone = p.lead_phone_number;
+  let phone = p.lead_phone_number;
+
+  // Instantly doesn't always include phone in the webhook — fetch it from the API
+  if (!phone) {
+    try {
+      const { data: leadData } = await instantly.get(`/leads/${email}`, {
+        params: { campaign_id: p.campaign_id },
+      });
+      phone = leadData?.phone ?? leadData?.lead_phone_number ?? leadData?.variables?.phone;
+    } catch (err: any) {
+      console.error(`[campaign-completed] Failed to fetch lead data for ${email}:`, err?.message);
+    }
+  }
 
   if (!phone) {
     console.log(`[campaign-completed] No phone number for ${email} — skipping WhatsApp check`);
