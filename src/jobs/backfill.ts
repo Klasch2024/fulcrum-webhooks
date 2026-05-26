@@ -24,6 +24,7 @@ async function backfillSentEmails(): Promise<void> {
       params: {
         limit:          100,
         ue_type:        1, // sent
+        timestamp_after: '2026-05-25T00:00:00.000Z', // only fetch from system go-live date
         ...(startingAfter && { starting_after: startingAfter }),
       },
     });
