@@ -8,7 +8,9 @@ export type InstantlyEventType =
   | 'lead_interested'
   | 'lead_not_interested'
   | 'campaign_completed_for_lead'
-  | 'campaign_completed_for_lead_without_reply';
+  | 'campaign_completed_for_lead_without_reply'
+  | 'auto_reply_received'
+  | 'lead_wrong_person';
 
 interface BasePayload {
   event_type:    InstantlyEventType;
