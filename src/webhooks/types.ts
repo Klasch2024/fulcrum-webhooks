@@ -65,6 +65,14 @@ export interface LeadNotInterestedPayload extends BasePayload {
   event_type: 'lead_not_interested';
 }
 
+export interface AutoReplyReceivedPayload extends BasePayload {
+  event_type: 'auto_reply_received';
+}
+
+export interface LeadWrongPersonPayload extends BasePayload {
+  event_type: 'lead_wrong_person';
+}
+
 export interface CampaignCompletedPayload extends BasePayload {
   event_type:        'campaign_completed_for_lead' | 'campaign_completed_for_lead_without_reply';
   lead_phone_number?: string;
@@ -82,4 +90,6 @@ export type WebhookPayload =
   | LeadUnsubscribedPayload
   | LeadInterestedPayload
   | LeadNotInterestedPayload
-  | CampaignCompletedPayload;
+  | CampaignCompletedPayload
+  | AutoReplyReceivedPayload
+  | LeadWrongPersonPayload;
