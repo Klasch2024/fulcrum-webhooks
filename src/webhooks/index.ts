@@ -41,6 +41,10 @@ webhookRouter.post('/', async (req: Request, res: Response) => {
         case 'lead_not_interested':  await handleLeadInterested(event);   break;
         case 'campaign_completed_for_lead_without_reply':
                                      await handleCampaignCompleted(event as any); break;
+        case 'auto_reply_received':
+        case 'lead_wrong_person':
+          console.log(`[webhook] Ignored event: ${event.event_type} for ${(event as any).lead_email}`);
+          break;
         default:
           console.log(`Unhandled event type: ${(event as WebhookPayload).event_type}`);
       }

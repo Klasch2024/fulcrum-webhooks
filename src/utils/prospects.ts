@@ -3,7 +3,8 @@ import { supabase } from '../supabase';
 // In-process cache to avoid repeated DB lookups for the same email
 const cache = new Map<string, string>();
 
-export async function getOrCreateProspect(email: string): Promise<string> {
+export async function getOrCreateProspect(email: string | undefined | null): Promise<string | null> {
+  if (!email) return null;
   const cached = cache.get(email);
   if (cached) return cached;
 
@@ -26,7 +27,10 @@ export async function getOrCreateProspect(email: string): Promise<string> {
     .select('prospect_id')
     .single();
 
-  if (error || !created) throw new Error(`Failed to create prospect for ${email}: ${error?.message}`);
+  if (error || !created) {
+    console.error(`Failed to create prospect for ${email}: ${error?.message}`);
+    return null;
+  }
 
   cache.set(email, created.prospect_id);
   return created.prospect_id;

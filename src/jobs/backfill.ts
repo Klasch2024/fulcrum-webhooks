@@ -32,7 +32,9 @@ async function backfillSentEmails(): Promise<void> {
     if (!emails.length) break;
 
     for (const email of emails) {
-      const prospectId = await getOrCreateProspect(email.to_address_email ?? email.lead_email);
+      const emailAddr = email.to_address_email ?? email.lead_email;
+      if (!emailAddr) continue; // skip rows with no recipient address
+      const prospectId = await getOrCreateProspect(emailAddr);
       const t = getTimeFields(email.timestamp_email ?? email.timestamp_created);
       const body = email.body ?? '';
 
