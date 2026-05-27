@@ -81,7 +81,7 @@ whatsappSendRouter.post('/', async (req: Request, res: Response) => {
       .insert({
         prospect_id:              resolvedProspectId,
         prospect_email:           prospect_email,
-        campaign_id:              toUuid(campaign_id) ?? campaign_id,
+        campaign_id:              toUuid(campaign_id),
         channel:                  'whatsapp',
         sequence_step_number:     sequence_step_number,
         days_into_sequence:       days_into_sequence ?? null,
