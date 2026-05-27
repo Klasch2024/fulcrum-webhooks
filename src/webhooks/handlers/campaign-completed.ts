@@ -61,7 +61,7 @@ export async function handleCampaignCompleted(p: CampaignCompletedPayload) {
     .upsert(
       {
         email:                 email,
-        name:                  (p as any).firstName ?? (p as any).first_name ?? null,
+        name:                  (p as any).firstName ?? (p as any).first_name ?? '',
         phone:                 phone,
         company:               (p as any).company_name ?? (p as any).companyName ?? '',
         status:                'pending',
