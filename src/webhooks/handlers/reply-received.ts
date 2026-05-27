@@ -6,14 +6,41 @@ import { getTimeFields } from '../../utils/time';
 import { countWords, countChars, stripHtml } from '../../utils/text';
 
 export async function handleReplyReceived(p: ReplyReceivedPayload): Promise<void> {
-  const [messageId, prospectId] = await Promise.all([
+  const [foundMessageId, prospectId] = await Promise.all([
     findMessageId(p.campaign_id, p.lead_email, p.step),
     getOrCreateProspect(p.lead_email),
   ]);
 
+  let messageId = foundMessageId;
+
   if (!messageId) {
-    console.warn(`reply_received: no send found for campaign=${p.campaign_id} email=${p.lead_email} step=${p.step}`);
-    return;
+    // No matching send found — backfill a stub so the reply isn't lost
+    const tf = getTimeFields(p.timestamp);
+    const { data: stub } = await supabase
+      .from('outreach_sends')
+      .insert({
+        prospect_id:          prospectId,
+        prospect_email:       p.lead_email,
+        campaign_id:          p.campaign_id,
+        campaign_name:        p.campaign_name ?? null,
+        channel:              'email',
+        sequence_step_number: p.step,
+        sent_at:              p.timestamp,
+        sent_day_of_week:     tf.dayOfWeek,
+        sent_hour_utc:        tf.hourUtc,
+        sent_week_of_year:    tf.weekOfYear,
+        sent_month:           tf.month,
+        deliverability_status:'delivered',
+      })
+      .select('message_id')
+      .single();
+
+    if (!stub?.message_id) {
+      console.warn(`reply_received: backfill failed for campaign=${p.campaign_id} email=${p.lead_email} step=${p.step}`);
+      return;
+    }
+    console.log(`reply_received: backfilled send for campaign=${p.campaign_id} email=${p.lead_email} step=${p.step}`);
+    messageId = stub.message_id;
   }
 
   const t    = getTimeFields(p.timestamp);
